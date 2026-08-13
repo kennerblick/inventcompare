@@ -13,6 +13,7 @@ class SettingsUpdate(BaseModel):
     matching: dict | None = None
     idoit: dict | None = None
     zabbix: dict | None = None
+    gitlab: dict | None = None
 
 
 @router.get("")
@@ -25,6 +26,7 @@ async def get_settings_endpoint():
         "credentials_configured": {
             "zabbix": settings.zabbix_configured,
             "idoit": settings.idoit_configured,
+            "gitlab": settings.gitlab_configured,
         },
     }
 

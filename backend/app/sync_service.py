@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 
 from app.comparison import compare
 from app.config import Settings, get_settings
+from app.connectors.gitlab import GitlabConnector
 from app.connectors.idoit import IdoitConnector
 from app.connectors.zabbix import ZabbixConnector
 from app.connectors.base import ConnectorError
@@ -27,6 +28,15 @@ def build_connectors(settings: Settings, config: dict):
                 settings,
                 object_types=idoit_config.get("object_types"),
                 only_in_operation=idoit_config.get("only_in_operation", True),
+            )
+        )
+    if sources_enabled.get("gitlab", True):
+        gitlab_config = config.get("gitlab", {})
+        connectors.append(
+            GitlabConnector(
+                settings,
+                group_paths=gitlab_config.get("group_paths"),
+                include_archived=gitlab_config.get("include_archived", False),
             )
         )
     return connectors

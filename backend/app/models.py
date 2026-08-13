@@ -8,6 +8,7 @@ from pydantic import BaseModel
 class SourceName(str, Enum):
     zabbix = "zabbix"
     idoit = "idoit"
+    gitlab = "gitlab"
 
 
 class DeviceStatus(str, Enum):

@@ -14,7 +14,7 @@ SNAPSHOT_FILE = DATA_DIR / "comparison_snapshot.json"
 
 DEFAULT_SETTINGS: dict[str, Any] = {
     "sync_interval_minutes": 15,
-    "sources_enabled": {"zabbix": True, "idoit": True},
+    "sources_enabled": {"zabbix": True, "idoit": True, "gitlab": True},
     "matching": {
         # Reihenfolge der Matching-Strategie: erst Hostname, dann IP
         "match_on": ["hostname", "ip"],
@@ -33,6 +33,13 @@ DEFAULT_SETTINGS: dict[str, Any] = {
     "zabbix": {
         # Zabbix Host-Gruppen, die einbezogen werden sollen (leer = alle)
         "host_groups": [],
+    },
+    "gitlab": {
+        # GitLab-Gruppenpfade (inkl. Untergruppen), unter denen je Server ein
+        # eigenes Projekt liegt, z.B. "it-services/Hardware/Server".
+        "group_paths": [],
+        # Archivierte Projekte (i.d.R. stillgelegte Server) standardmäßig ignorieren.
+        "include_archived": False,
     },
 }
 

@@ -162,11 +162,14 @@ async function loadSettings() {
   document.getElementById('set-interval').value = cfg.sync_interval_minutes;
   document.getElementById('set-zabbix-enabled').checked = !!cfg.sources_enabled.zabbix;
   document.getElementById('set-idoit-enabled').checked = !!cfg.sources_enabled.idoit;
+  document.getElementById('set-gitlab-enabled').checked = !!cfg.sources_enabled.gitlab;
   document.getElementById('set-ignore-case').checked = !!cfg.matching.ignore_case;
   document.getElementById('set-strip-domain').checked = !!cfg.matching.strip_domain;
   document.getElementById('set-idoit-types').value = (cfg.idoit.object_types || []).join(', ');
   document.getElementById('set-idoit-in-operation').checked = cfg.idoit.only_in_operation !== false;
   document.getElementById('set-zabbix-groups').value = (cfg.zabbix.host_groups || []).join(', ');
+  document.getElementById('set-gitlab-paths').value = (cfg.gitlab.group_paths || []).join(', ');
+  document.getElementById('set-gitlab-archived').checked = !!cfg.gitlab.include_archived;
 
   const credEl = document.getElementById('cred-status');
   credEl.innerHTML = Object.entries(data.credentials_configured).map(([name, ok]) =>
@@ -199,6 +202,7 @@ document.getElementById('btn-save-settings').addEventListener('click', async () 
     sources_enabled: {
       zabbix: document.getElementById('set-zabbix-enabled').checked,
       idoit: document.getElementById('set-idoit-enabled').checked,
+      gitlab: document.getElementById('set-gitlab-enabled').checked,
     },
     matching: {
       ignore_case: document.getElementById('set-ignore-case').checked,
@@ -210,6 +214,10 @@ document.getElementById('btn-save-settings').addEventListener('click', async () 
     },
     zabbix: {
       host_groups: document.getElementById('set-zabbix-groups').value.split(',').map(s => s.trim()).filter(Boolean),
+    },
+    gitlab: {
+      group_paths: document.getElementById('set-gitlab-paths').value.split(',').map(s => s.trim()).filter(Boolean),
+      include_archived: document.getElementById('set-gitlab-archived').checked,
     },
   };
   try {

@@ -29,6 +29,11 @@ class Settings(BaseSettings):
     idoit_password: Optional[str] = None
     idoit_verify_ssl: bool = True
 
+    # GitLab
+    gitlab_url: Optional[str] = None
+    gitlab_api_token: Optional[str] = None
+    gitlab_verify_ssl: bool = True
+
     @property
     def zabbix_configured(self) -> bool:
         return bool(self.zabbix_url and (self.zabbix_api_token or (self.zabbix_user and self.zabbix_password)))
@@ -36,6 +41,10 @@ class Settings(BaseSettings):
     @property
     def idoit_configured(self) -> bool:
         return bool(self.idoit_url and self.idoit_api_key)
+
+    @property
+    def gitlab_configured(self) -> bool:
+        return bool(self.gitlab_url and self.gitlab_api_token)
 
 
 @lru_cache

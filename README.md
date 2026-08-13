@@ -1,9 +1,10 @@
 # InventCompare
 
 Gleicht Server- und Netzwerkgeräte-Inventare zwischen mehreren Quellsystemen ab
-und zeigt Abweichungen grafisch an. Aktuell angebunden: **Zabbix** (Monitoring)
-und **i-doit** (CMDB), jeweils über deren JSON-RPC-APIs. Weitere Quellen (z.B.
-Git-basierte Inventories) können nach demselben Connector-Muster ergänzt werden.
+und zeigt Abweichungen grafisch an. Aktuell angebunden: **Zabbix** (Monitoring,
+JSON-RPC), **i-doit** (CMDB, JSON-RPC) und **GitLab** (REST API v4 – pro Server
+ein eigenes Dokumentations-Projekt unter konfigurierten Gruppenpfaden). Weitere
+Quellen können nach demselben Connector-Muster ergänzt werden.
 
 ## Features
 
@@ -15,7 +16,7 @@ Git-basierte Inventories) können nach demselben Connector-Muster ergänzt werde
 - **Vergleichstabelle** – filterbar nach Status (übereinstimmend / Abweichung / fehlend) und Hostname
 - **Graph-Ansicht** – Geräte als Knoten, farbcodiert nach Abgleichsstatus, verbunden mit den Quellsystemen
 - **Konfiguration über Web-UI** – Sync-Intervall, aktive Quellen, Matching-Optionen, i-doit-Objekttypen, Zabbix-Hostgruppen
-- **Zugangsdaten nur in `.env`** – Zabbix-/i-doit-Credentials liegen ausschließlich in der `.env` auf dem Docker-Host, nicht in der Web-Oberfläche oder im Repo
+- **Zugangsdaten nur in `.env`** – Credentials aller Quellen liegen ausschließlich in der `.env` auf dem Docker-Host, nicht in der Web-Oberfläche oder im Repo
 
 ## Stack
 
@@ -33,7 +34,7 @@ Git-basierte Inventories) können nach demselben Connector-Muster ergänzt werde
 git clone https://github.com/kennerblick/inventcompare.git
 cd inventcompare
 cp .env.example .env
-# .env anpassen: ZABBIX_URL/-TOKEN und IDOIT_URL/-API_KEY eintragen
+# .env anpassen: ZABBIX_URL/-TOKEN, IDOIT_URL/-API_KEY, GITLAB_URL/-TOKEN eintragen
 docker compose up -d
 ```
 
@@ -57,15 +58,20 @@ ausführen, damit der Backend-Container die neuen Werte lädt.
 - **i-doit**: `IDOIT_API_KEY` (Mandanten-Schlüssel) plus `IDOIT_USER`/`IDOIT_PASSWORD`
   eines Benutzers mit Leserechten. `IDOIT_URL` muss auf den JSON-RPC-Endpunkt
   zeigen, üblicherweise `https://<host>/src/jsonrpc.php`.
+- **GitLab**: `GITLAB_API_TOKEN` (Personal- oder Group-Access-Token, Scope
+  `read_api` genügt). `GITLAB_URL` ist die Basis-URL der Instanz (ohne `/api/v4`).
 
 ### Alles Weitere über die Web-Oberfläche (Einstellungen)
 
 - Sync-Intervall (Minuten)
-- Aktive Quellen (Zabbix/i-doit einzeln deaktivierbar)
+- Aktive Quellen (Zabbix/i-doit/GitLab einzeln deaktivierbar)
 - Matching: Groß-/Kleinschreibung ignorieren, Domain vom Hostnamen trennen
 - i-doit-Objekttypen, die als Server/Netzwerkgerät gelten (Default: `C__OBJTYPE__SERVER`,
   `C__OBJTYPE__NETWORK_DEVICE`, `C__OBJTYPE__VIRTUAL_SERVER`)
-- Zabbix-Hostgruppen-Filter (leer = alle Hosts)
+- i-doit: nur Objekte mit CMDB-Status "In Betrieb" (abschaltbar)
+- Zabbix-Hostgruppen-Filter (leer = alle Hosts, inkl. Untergruppen "Parent/Child")
+- GitLab-Gruppenpfade, unter denen je Server ein Projekt liegt (inkl. Untergruppen),
+  z.B. `it-services/Hardware/Server`; archivierte Projekte standardmäßig ausgeschlossen
 
 ## Relevante API-Endpunkte
 
@@ -85,9 +91,13 @@ ausführen, damit der Backend-Container die neuen Werte lädt.
   Kategorien `C__CATG__IP` und `C__CATG__OS` nach. Je nach i-doit-Version oder
   individuellen Anpassungen können Attributnamen innerhalb dieser Kategorien
   abweichen – bei Bedarf in `backend/app/connectors/idoit.py` anpassen.
-- Ein **Git-Connector** (z.B. Ansible-Inventory) ist als nächster Schritt
-  vorgesehen, aber noch nicht implementiert. Neue Connectoren folgen dem
-  Interface in `backend/app/connectors/base.py`.
+- **GitLab**: listet Projekte je konfiguriertem Gruppenpfad per
+  `GET /groups/:id/projects?include_subgroups=true`. Liefert keine IP/OS-Daten,
+  zählt also nur für Existenz-/Vollständigkeitsabgleich (ist für den Server ein
+  Dokumentations-Projekt vorhanden). Der Projektname ist der primäre Match-Name,
+  der Projekt-Pfad (falls abweichend) ein zusätzlicher Alias.
+
+Neue Connectoren folgen dem Interface in `backend/app/connectors/base.py`.
 
 ## Entwicklung
 
