@@ -182,9 +182,10 @@ document.getElementById('btn-load-idoit-types').addEventListener('click', async 
       listEl.innerHTML = '<div class="empty-hint">Keine Objekttypen gefunden.</div>';
       return;
     }
-    listEl.innerHTML = `<table><thead><tr><th>Titel</th><th>const (für Einstellungsfeld)</th></tr></thead><tbody>
-      ${types.map(t => `<tr><td>${t.title ?? '–'}</td><td><code>${t.const ?? '–'}</code></td></tr>`).join('')}
-    </tbody></table>`;
+    listEl.innerHTML = `<table><thead><tr><th>Titel</th><th>const (bevorzugt)</th><th>ID (falls kein const)</th></tr></thead><tbody>
+      ${types.map(t => `<tr><td>${t.title ?? '–'}</td><td>${t.const ? `<code>${t.const}</code>` : '–'}</td><td><code>${t.id ?? '–'}</code></td></tr>`).join('')}
+    </tbody></table>
+    <div class="empty-hint" style="padding:8px 0 0;">Individuell angelegte Objekttypen haben oft keine eigene "const" – in dem Fall die ID ins Filterfeld eintragen.</div>`;
   } catch (e) {
     listEl.innerHTML = '';
     toast('Fehler beim Laden der Objekttypen: ' + e.message, true);

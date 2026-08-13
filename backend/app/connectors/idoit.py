@@ -103,7 +103,12 @@ class IdoitConnector(Connector):
         async with self._client() as client:
             result = await self._call(client, "cmdb.object_types.read", {})
         return [
-            {"const": t.get("const"), "title": t.get("title"), "category": t.get("category_type")}
+            {
+                "id": t.get("id"),
+                "const": t.get("const") or None,
+                "title": t.get("title"),
+                "category": t.get("category_type"),
+            }
             for t in result
         ]
 
