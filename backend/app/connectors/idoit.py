@@ -88,15 +88,30 @@ class IdoitConnector(Connector):
                 return []
             return result or []
 
+    def _client(self) -> httpx.AsyncClient:
+        basic_auth = None
+        if self.settings.idoit_user and self.settings.idoit_password:
+            basic_auth = httpx.BasicAuth(self.settings.idoit_user, self.settings.idoit_password)
+        return httpx.AsyncClient(verify=self.settings.idoit_verify_ssl, auth=basic_auth)
+
+    async def list_object_types(self) -> list[dict]:
+        """Liefert alle in dieser i-doit-Instanz vorhandenen Objekttypen
+        (const + title), damit die richtigen Werte für die
+        Objekttyp-Filter-Einstellung gefunden werden können."""
+        if not self.is_configured():
+            raise ConnectorError("i-doit ist nicht konfiguriert (URL/API-Key fehlen)")
+        async with self._client() as client:
+            result = await self._call(client, "cmdb.object_types.read", {})
+        return [
+            {"const": t.get("const"), "title": t.get("title"), "category": t.get("category_type")}
+            for t in result
+        ]
+
     async def fetch_devices(self) -> list[Device]:
         if not self.is_configured():
             raise ConnectorError("i-doit ist nicht konfiguriert (URL/API-Key fehlen)")
 
-        basic_auth = None
-        if self.settings.idoit_user and self.settings.idoit_password:
-            basic_auth = httpx.BasicAuth(self.settings.idoit_user, self.settings.idoit_password)
-
-        async with httpx.AsyncClient(verify=self.settings.idoit_verify_ssl, auth=basic_auth) as client:
+        async with self._client() as client:
             filter_: dict = {}
             if self.object_types:
                 filter_["type"] = self.object_types

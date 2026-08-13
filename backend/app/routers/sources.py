@@ -1,7 +1,9 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 
 from app import storage
 from app.config import get_settings
+from app.connectors.base import ConnectorError
+from app.connectors.idoit import IdoitConnector
 from app.sync_service import build_connectors, get_last_snapshot
 
 router = APIRouter(prefix="/api/sources", tags=["sources"])
@@ -44,3 +46,18 @@ async def test_source(name: str):
         return {"error": f"Unbekannte Quelle '{name}'"}
     status = await connector.status()
     return status.model_dump(mode="json")
+
+
+@router.get("/idoit/object-types")
+async def list_idoit_object_types():
+    """Listet alle in der i-doit-Instanz vorhandenen Objekttypen (const + title),
+    damit die passenden Werte für die Objekttyp-Filter-Einstellung gefunden werden."""
+    settings = get_settings()
+    connector = IdoitConnector(settings)
+    if not connector.is_configured():
+        raise HTTPException(status_code=400, detail="i-doit ist nicht konfiguriert (URL/API-Key fehlen)")
+    try:
+        types = await connector.list_object_types()
+    except ConnectorError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+    return sorted(types, key=lambda t: (t.get("title") or "").lower())

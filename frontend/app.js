@@ -173,6 +173,24 @@ async function loadSettings() {
   ).join('');
 }
 
+document.getElementById('btn-load-idoit-types').addEventListener('click', async () => {
+  const listEl = document.getElementById('idoit-types-list');
+  listEl.innerHTML = '<div class="empty-hint">Lade Objekttypen…</div>';
+  try {
+    const types = await api('/sources/idoit/object-types');
+    if (types.length === 0) {
+      listEl.innerHTML = '<div class="empty-hint">Keine Objekttypen gefunden.</div>';
+      return;
+    }
+    listEl.innerHTML = `<table><thead><tr><th>Titel</th><th>const (für Einstellungsfeld)</th></tr></thead><tbody>
+      ${types.map(t => `<tr><td>${t.title ?? '–'}</td><td><code>${t.const ?? '–'}</code></td></tr>`).join('')}
+    </tbody></table>`;
+  } catch (e) {
+    listEl.innerHTML = '';
+    toast('Fehler beim Laden der Objekttypen: ' + e.message, true);
+  }
+});
+
 document.getElementById('btn-save-settings').addEventListener('click', async () => {
   const payload = {
     sync_interval_minutes: parseInt(document.getElementById('set-interval').value, 10) || 15,

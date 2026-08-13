@@ -75,13 +75,16 @@ class ZabbixConnector(Connector):
                 "selectInventory": ["os", "os_full"],
             }
             if self.host_groups:
-                groups = await self._call(
-                    client,
-                    "hostgroup.get",
-                    {"output": ["groupid"], "filter": {"name": self.host_groups}},
-                    auth_token,
-                )
-                groupids = [g["groupid"] for g in groups]
+                # Alle Gruppen holen und clientseitig auf exakten Namen oder
+                # verschachtelte Untergruppe (Zabbix-Konvention "Parent/Child")
+                # filtern - z.B. schließt "Server" auch "Server/Linux" ein,
+                # aber nicht eine unabhängige Gruppe "Serverraum".
+                all_groups = await self._call(client, "hostgroup.get", {"output": ["groupid", "name"]}, auth_token)
+                groupids = [
+                    g["groupid"]
+                    for g in all_groups
+                    if any(g["name"] == wanted or g["name"].startswith(wanted + "/") for wanted in self.host_groups)
+                ]
                 if groupids:
                     params["groupids"] = groupids
 

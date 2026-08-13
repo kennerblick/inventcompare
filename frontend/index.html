@@ -80,8 +80,12 @@
       </div>
       <div class="section">
         <h2>Filter je Quelle</h2>
-        <div class="form-row"><label>i-doit Objekttypen (Komma-getrennt)</label><input type="text" id="set-idoit-types"></div>
-        <div class="form-row"><label>Zabbix Host-Gruppen (Komma-getrennt)</label><input type="text" id="set-zabbix-groups"></div>
+        <div class="form-row"><label>i-doit Objekttypen (Komma-getrennt, als const)</label><input type="text" id="set-idoit-types"></div>
+        <div style="margin:-4px 0 12px;">
+          <button class="btn btn-secondary" id="btn-load-idoit-types" type="button">Verfügbare i-doit-Objekttypen anzeigen</button>
+        </div>
+        <div id="idoit-types-list" style="max-height:220px;overflow-y:auto;margin-bottom:12px;"></div>
+        <div class="form-row"><label>Zabbix Host-Gruppen (Komma-getrennt, inkl. Untergruppen)</label><input type="text" id="set-zabbix-groups"></div>
       </div>
       <div>
         <button class="btn btn-primary" id="btn-save-settings">Speichern</button>
