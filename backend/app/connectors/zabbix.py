@@ -106,15 +106,20 @@ class ZabbixConnector(Connector):
             inventory = host.get("inventory") or {}
             os_name = inventory.get("os_full") or inventory.get("os") or None
 
+            technical_name = host.get("host") or host.get("name")
+            visible_name = host.get("name")
+            match_aliases = [visible_name] if visible_name and visible_name != technical_name else []
+
             devices.append(
                 Device(
                     source=SourceName.zabbix,
                     source_id=host["hostid"],
-                    hostname=host.get("host") or host.get("name"),
+                    hostname=technical_name,
                     ip=ip,
                     os=os_name or None,
                     status=status,
                     device_type="host",
+                    match_aliases=match_aliases,
                 )
             )
         return devices

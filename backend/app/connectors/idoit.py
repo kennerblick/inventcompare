@@ -27,6 +27,9 @@ from app.models import Device, DeviceStatus, SourceName
 
 CONCURRENCY_LIMIT = 8
 
+# i-doit-Konstante für CMDB-Status "In Betrieb" (C__CMDB_STATUS__IN_OPERATION)
+CMDB_STATUS_IN_OPERATION = "6"
+
 
 def _as_text(value) -> str | None:
     """i-doit liefert manche Kategorie-Felder als reinen String, andere als
@@ -63,9 +66,10 @@ def _is_primary(entry: dict) -> bool:
 class IdoitConnector(Connector):
     name = SourceName.idoit
 
-    def __init__(self, settings: Settings, object_types: list[str] | None = None):
+    def __init__(self, settings: Settings, object_types: list[str] | None = None, only_in_operation: bool = True):
         self.settings = settings
         self.object_types = object_types or []
+        self.only_in_operation = only_in_operation
         self._request_id = 0
 
     def is_configured(self) -> bool:
@@ -144,6 +148,9 @@ class IdoitConnector(Connector):
                 "cmdb.objects.read",
                 {"filter": filter_} if filter_ else {},
             )
+
+            if self.only_in_operation:
+                objects = [o for o in objects if str(o.get("cmdb_status")) == CMDB_STATUS_IN_OPERATION]
 
             sem = asyncio.Semaphore(CONCURRENCY_LIMIT)
             ip_results, os_results = await asyncio.gather(

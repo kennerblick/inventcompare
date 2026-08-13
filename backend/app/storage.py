@@ -26,6 +26,9 @@ DEFAULT_SETTINGS: dict[str, Any] = {
         # Kann in einer i-doit-Installation individuell abweichen, daher
         # über die Oberfläche anpassbar.
         "object_types": ["C__OBJTYPE__SERVER", "C__OBJTYPE__NETWORK_DEVICE", "C__OBJTYPE__VIRTUAL_SERVER"],
+        # Nur Objekte mit CMDB-Status "In Betrieb" (i-doit-Konstante
+        # C__CMDB_STATUS__IN_OPERATION = 6) berücksichtigen.
+        "only_in_operation": True,
     },
     "zabbix": {
         # Zabbix Host-Gruppen, die einbezogen werden sollen (leer = alle)

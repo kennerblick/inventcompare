@@ -21,7 +21,14 @@ def build_connectors(settings: Settings, config: dict):
     if sources_enabled.get("zabbix", True):
         connectors.append(ZabbixConnector(settings, host_groups=config.get("zabbix", {}).get("host_groups")))
     if sources_enabled.get("idoit", True):
-        connectors.append(IdoitConnector(settings, object_types=config.get("idoit", {}).get("object_types")))
+        idoit_config = config.get("idoit", {})
+        connectors.append(
+            IdoitConnector(
+                settings,
+                object_types=idoit_config.get("object_types"),
+                only_in_operation=idoit_config.get("only_in_operation", True),
+            )
+        )
     return connectors
 
 
