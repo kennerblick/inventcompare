@@ -1,13 +1,13 @@
 """i-doit-Connector über die JSON-RPC API.
 
 Auth: apikey (Mandant/App-Schlüssel aus i-doit -> Systembibliothek ->
-Mandanten) im Request-Body. Für den Benutzer wird zusätzlich HTTP
-Basic-Auth (Username/Passwort) mitgeschickt sowie - als Kompatibilität
-zu älteren i-doit-Versionen - die Header 'X-RPC-Auth-Username' /
-'X-RPC-Auth-Password'. Ist die i-doit-Einstellung
+Mandanten) im Request-Body sowie HTTP Basic-Auth (Username/Passwort)
+auf dem HTTP-Request. Ist die i-doit-Einstellung
 'api.authenticated-users-only' aktiv, verlangt i-doit ausdrücklich HTTP
 Basic-Auth oder eine Session-ID; kein Login/Session-Handling nötig, da
-hier bei jedem Request Basic-Auth mitgesendet wird.
+hier bei jedem Request Basic-Auth mitgesendet wird. Bewusst KEINE
+zusätzlichen 'X-RPC-Auth-*'-Header, da diese bei manchen i-doit-Versionen
+mit der Basic-Auth kollidieren und den Login fehlschlagen lassen.
 
 IDOIT_URL muss auf den JSON-RPC-Endpunkt zeigen, z.B.
 https://idoit.example.com/src/jsonrpc.php
@@ -43,14 +43,6 @@ class IdoitConnector(Connector):
         self._request_id += 1
         return self._request_id
 
-    def _headers(self) -> dict:
-        headers = {"Content-Type": "application/json"}
-        if self.settings.idoit_user:
-            headers["X-RPC-Auth-Username"] = self.settings.idoit_user
-        if self.settings.idoit_password:
-            headers["X-RPC-Auth-Password"] = self.settings.idoit_password
-        return headers
-
     async def _call(self, client: httpx.AsyncClient, method: str, params: dict) -> dict | list:
         body = {
             "version": "2.0",
@@ -59,7 +51,7 @@ class IdoitConnector(Connector):
             "id": self._next_id(),
         }
         try:
-            resp = await client.post(self.settings.idoit_url, json=body, headers=self._headers(), timeout=30)
+            resp = await client.post(self.settings.idoit_url, json=body, headers={"Content-Type": "application/json"}, timeout=30)
             resp.raise_for_status()
         except httpx.HTTPError as exc:
             raise ConnectorError(f"i-doit nicht erreichbar: {exc}") from exc
