@@ -1,0 +1,21 @@
+services:
+  backend:
+    build: ./backend
+    container_name: inventcompare-api
+    restart: unless-stopped
+    env_file:
+      - .env
+    volumes:
+      - ./data:/app/data
+
+  nginx:
+    image: nginx:alpine
+    container_name: inventcompare-nginx
+    restart: unless-stopped
+    ports:
+      - "${NGINX_PORT:-9091}:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./frontend:/usr/share/nginx/html:ro
+    depends_on:
+      - backend
