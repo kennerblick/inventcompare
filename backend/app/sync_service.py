@@ -55,6 +55,16 @@ async def run_sync() -> ComparisonSnapshot:
             except ConnectorError as exc:
                 logger.warning("Sync-Fehler bei %s: %s", connector.name, exc)
                 statuses.append(SourceStatus(name=connector.name, configured=True, reachable=False, error=str(exc)))
+            except Exception as exc:  # unerwarteter Fehler (z.B. abweichendes API-Antwortformat)
+                logger.exception("Unerwarteter Fehler bei %s", connector.name)
+                statuses.append(
+                    SourceStatus(
+                        name=connector.name,
+                        configured=True,
+                        reachable=False,
+                        error=f"Unerwarteter Fehler: {exc.__class__.__name__}: {exc}",
+                    )
+                )
 
         entries, summary = compare(devices_by_source, config.get("matching", {}))
 

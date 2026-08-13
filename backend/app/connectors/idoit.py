@@ -28,6 +28,19 @@ from app.models import Device, DeviceStatus, SourceName
 CONCURRENCY_LIMIT = 8
 
 
+def _as_text(value) -> str | None:
+    """i-doit liefert manche Kategorie-Felder als reinen String, andere als
+    Objekt-Referenz (dict mit u.a. 'title'/'id') - je nach i-doit-Version und
+    Konfiguration. Diese Funktion holt in beiden Fällen den Anzeigetext."""
+    if value is None:
+        return None
+    if isinstance(value, str):
+        return value or None
+    if isinstance(value, dict):
+        return value.get("title") or value.get("ref_title") or None
+    return str(value)
+
+
 class IdoitConnector(Connector):
     name = SourceName.idoit
 
@@ -104,12 +117,12 @@ class IdoitConnector(Connector):
             ip = None
             if ip_entries:
                 primary = next((e for e in ip_entries if e.get("primary")), ip_entries[0])
-                ip = primary.get("hostaddress") or primary.get("ipv4_address") or primary.get("ipv6_address")
+                ip = _as_text(primary.get("hostaddress")) or _as_text(primary.get("ipv4_address")) or _as_text(primary.get("ipv6_address"))
 
             os_name = None
             if os_entries:
                 entry = os_entries[0]
-                os_name = entry.get("title") or (entry.get("manufacturer") or {}).get("title")
+                os_name = _as_text(entry.get("title")) or _as_text(entry.get("manufacturer"))
 
             devices.append(
                 Device(
