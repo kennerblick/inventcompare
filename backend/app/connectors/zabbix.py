@@ -40,7 +40,14 @@ class ZabbixConnector(Connector):
             resp.raise_for_status()
         except httpx.HTTPError as exc:
             raise ConnectorError(f"Zabbix nicht erreichbar: {exc}") from exc
-        data = resp.json()
+        try:
+            data = resp.json()
+        except ValueError as exc:
+            preview = resp.text[:200].replace("\n", " ")
+            raise ConnectorError(
+                f"Zabbix hat kein JSON geliefert (HTTP {resp.status_code}). "
+                f"Prüfe, ob ZABBIX_URL auf den api_jsonrpc.php-Endpunkt zeigt. Antwort: {preview!r}"
+            ) from exc
         if "error" in data:
             raise ConnectorError(f"Zabbix API-Fehler: {data['error'].get('data') or data['error'].get('message')}")
         return data["result"]
