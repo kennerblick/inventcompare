@@ -41,6 +41,25 @@ def _as_text(value) -> str | None:
     return str(value)
 
 
+def _extract_ip_address(value) -> str | None:
+    """Für hostaddress/ipv4_address/ipv6_address-Felder der Kategorie
+    C__CATG__IP: Bei einer Objekt-Referenz steht im 'title' der Name des
+    zugeordneten Netzes (NICHT die IP!), die eigentliche Adresse steht in
+    'ref_title'. Ein reiner String wird direkt übernommen."""
+    if isinstance(value, dict):
+        return value.get("ref_title") or None
+    if isinstance(value, str):
+        return value or None
+    return None
+
+
+def _is_primary(entry: dict) -> bool:
+    primary = entry.get("primary")
+    if isinstance(primary, dict):
+        return str(primary.get("value")) == "1"
+    return bool(primary)
+
+
 class IdoitConnector(Connector):
     name = SourceName.idoit
 
@@ -135,9 +154,34 @@ class IdoitConnector(Connector):
         devices: list[Device] = []
         for obj, ip_entries, os_entries in zip(objects, ip_results, os_results):
             ip = None
+            match_aliases: list[str] = []
             if ip_entries:
-                primary = next((e for e in ip_entries if e.get("primary")), ip_entries[0])
-                ip = _as_text(primary.get("hostaddress")) or _as_text(primary.get("ipv4_address")) or _as_text(primary.get("ipv6_address"))
+                # Primäre IP-Zuordnung zuerst versuchen, sonst die erste mit
+                # tatsächlich befüllter Adresse (das "primary"-Flag sitzt nicht
+                # zwingend auf dem Eintrag mit gültiger Adresse).
+                primary_first = sorted(ip_entries, key=lambda e: 0 if _is_primary(e) else 1)
+                for entry in primary_first:
+                    ip = (
+                        _extract_ip_address(entry.get("hostaddress"))
+                        or _extract_ip_address(entry.get("ipv4_address"))
+                        or _extract_ip_address(entry.get("ipv6_address"))
+                    )
+                    if ip:
+                        break
+
+                for entry in ip_entries:
+                    hostname_part = entry.get("hostname")
+                    if isinstance(hostname_part, str) and hostname_part.strip():
+                        fqdn = hostname_part.strip()
+                        domain_part = entry.get("domain")
+                        if isinstance(domain_part, str) and domain_part.strip():
+                            fqdn = f"{fqdn}.{domain_part.strip()}"
+                        if fqdn not in match_aliases:
+                            match_aliases.append(fqdn)
+                    for pf in entry.get("primary_fqdn") or []:
+                        title = _as_text(pf)
+                        if title and title not in match_aliases:
+                            match_aliases.append(title)
 
             os_name = None
             if os_entries:
@@ -153,6 +197,7 @@ class IdoitConnector(Connector):
                     os=os_name,
                     status=DeviceStatus.unknown,
                     device_type=obj.get("type_title") or obj.get("type"),
+                    match_aliases=match_aliases,
                 )
             )
         return devices

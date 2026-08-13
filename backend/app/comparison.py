@@ -1,9 +1,13 @@
 """Abgleich der Geräte aus mehreren Quellen.
 
-Matching-Strategie (konfigurierbar über settings.matching):
-1. Primär über normalisierten Hostnamen.
-2. Für in nur einer Quelle gefundene Hostnamen: Versuch, das Gegenstück
-   in der/den anderen Quelle(n) über die IP-Adresse zu finden.
+Matching-Strategie (konfigurierbar über settings.matching), in dieser
+Reihenfolge, bis ein Gerät verbraucht ist:
+1. Normalisierter Hostname ODER einer der 'match_aliases' des Geräts
+   (z.B. der FQDN aus einer i-doit-IP-Zuordnung) trifft auf den
+   Hostnamen/eine Alias eines Geräts einer anderen Quelle.
+2. Für danach noch unverbrauchte Geräte: Versuch über die IP-Adresse.
+3. Übrig gebliebene Geräte werden als "nur in dieser Quelle vorhanden"
+   (missing) einzeln aufgenommen.
 
 Verglichen werden (soweit in beiden Quellen vorhanden): IP-Adresse und
 Betriebssystem. Fehlt ein Gerät komplett in einer Quelle, gilt es als
@@ -28,59 +32,72 @@ def _normalize_ip(ip: str | None) -> str | None:
 def compare(devices_by_source: dict[SourceName, list[Device]], matching: dict) -> tuple[list[ComparisonEntry], dict[str, int]]:
     strip_domain = matching.get("strip_domain", True)
     ignore_case = matching.get("ignore_case", True)
+    sources = list(devices_by_source.keys())
 
-    # Index je Quelle: normalisierter Hostname -> Device
+    # Lookup je Quelle: normalisierter Name (Hostname ODER Alias) -> Device.
+    # Ein Gerät kann unter mehreren Schlüsseln auffindbar sein.
     indexed: dict[SourceName, dict[str, Device]] = {}
     for source, devices in devices_by_source.items():
         idx: dict[str, Device] = {}
         for device in devices:
-            key = _normalize_hostname(device.hostname, strip_domain, ignore_case)
-            if key and key not in idx:
-                idx[key] = device
+            for raw_name in [device.hostname, *device.match_aliases]:
+                key = _normalize_hostname(raw_name, strip_domain, ignore_case)
+                if key and key not in idx:
+                    idx[key] = device
         indexed[source] = idx
 
-    sources = list(devices_by_source.keys())
-    all_keys = set()
-    for idx in indexed.values():
-        all_keys.update(idx.keys())
+    used: dict[SourceName, set[str]] = {s: set() for s in sources}
 
-    entries: list[ComparisonEntry] = []
-    consumed: dict[SourceName, set[str]] = {s: set() for s in sources}
-
-    for key in sorted(all_keys):
-        devices: dict[SourceName, Device] = {}
+    def unused_at(key: str) -> dict[SourceName, Device]:
+        result = {}
         for source in sources:
             device = indexed[source].get(key)
-            if device is not None:
-                devices[source] = device
-                consumed[source].add(key)
+            if device is not None and device.source_id not in used[source]:
+                result[source] = device
+        return result
+
+    all_keys = sorted({k for idx in indexed.values() for k in idx})
+    entries: list[ComparisonEntry] = []
+
+    # Pass 1: Name-/Alias-Treffer über mind. zwei Quellen hinweg
+    for key in all_keys:
+        devices = unused_at(key)
+        if len(devices) < 2:
+            continue
+        for source, device in devices.items():
+            used[source].add(device.source_id)
         entries.append(_build_entry(key, devices, sources))
 
-    # Zweiter Durchlauf: verbliebene (nicht gematchte) Geräte über IP verknüpfen
-    leftovers: dict[SourceName, dict[str, Device]] = {
-        source: {k: d for k, d in idx.items() if k not in consumed[source]} for source, idx in indexed.items()
-    }
-    merged_keys: set[str] = set()
-    ip_matched_entries: list[ComparisonEntry] = []
-
-    leftover_list = [(source, key, device) for source, idx in leftovers.items() for key, device in idx.items()]
-    for i, (source_a, key_a, device_a) in enumerate(leftover_list):
-        if key_a in merged_keys or not device_a.ip:
+    # Pass 2: verbliebene (noch unverbrauchte) Geräte über IP verknüpfen
+    remaining = [
+        (source, device)
+        for source, devices in devices_by_source.items()
+        for device in devices
+        if device.source_id not in used[source]
+    ]
+    for i, (source_a, device_a) in enumerate(remaining):
+        if device_a.source_id in used[source_a] or not device_a.ip:
             continue
-        for source_b, key_b, device_b in leftover_list[i + 1 :]:
-            if source_b == source_a or key_b in merged_keys:
+        for source_b, device_b in remaining[i + 1 :]:
+            if source_b == source_a or device_b.source_id in used[source_b]:
                 continue
-            if key_a in merged_keys:
+            if device_a.source_id in used[source_a]:
                 break
             if device_b.ip and _normalize_ip(device_b.ip) == _normalize_ip(device_a.ip):
-                combined = {source_a: device_a, source_b: device_b}
-                ip_matched_entries.append(_build_entry(key_a, combined, sources))
-                merged_keys.add(key_a)
-                merged_keys.add(key_b)
+                used[source_a].add(device_a.source_id)
+                used[source_b].add(device_b.source_id)
+                key = _normalize_hostname(device_a.hostname, strip_domain, ignore_case)
+                entries.append(_build_entry(key, {source_a: device_a, source_b: device_b}, sources))
 
-    # Entries entfernen, die nun Teil eines IP-Matches sind, und stattdessen die kombinierten einfügen
-    entries = [e for e in entries if e.key not in merged_keys]
-    entries.extend(ip_matched_entries)
+    # Pass 3: alles, was übrig bleibt, einzeln als "missing" aufnehmen
+    for source, devices in devices_by_source.items():
+        for device in devices:
+            if device.source_id in used[source]:
+                continue
+            used[source].add(device.source_id)
+            key = _normalize_hostname(device.hostname, strip_domain, ignore_case)
+            entries.append(_build_entry(key, {source: device}, sources))
+
     entries.sort(key=lambda e: e.hostname.lower())
 
     summary = {

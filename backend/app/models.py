@@ -29,6 +29,9 @@ class Device(BaseModel):
     status: DeviceStatus = DeviceStatus.unknown
     device_type: Optional[str] = None
     raw_url: Optional[str] = None
+    match_aliases: list[str] = []
+    """Zusätzliche Namen (z.B. FQDN aus einer IP-Zuordnung), unter denen dieses
+    Gerät beim Abgleich ebenfalls gefunden werden soll, zusätzlich zu hostname."""
 
 
 class FieldDiff(BaseModel):
