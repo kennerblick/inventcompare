@@ -1,9 +1,13 @@
 """i-doit-Connector über die JSON-RPC API.
 
 Auth: apikey (Mandant/App-Schlüssel aus i-doit -> Systembibliothek ->
-Mandanten) im Request-Body sowie Username/Passwort als Header
-'X-RPC-Auth-Username' / 'X-RPC-Auth-Password' bei jedem Aufruf (kein
-Login/Session-Handling nötig).
+Mandanten) im Request-Body. Für den Benutzer wird zusätzlich HTTP
+Basic-Auth (Username/Passwort) mitgeschickt sowie - als Kompatibilität
+zu älteren i-doit-Versionen - die Header 'X-RPC-Auth-Username' /
+'X-RPC-Auth-Password'. Ist die i-doit-Einstellung
+'api.authenticated-users-only' aktiv, verlangt i-doit ausdrücklich HTTP
+Basic-Auth oder eine Session-ID; kein Login/Session-Handling nötig, da
+hier bei jedem Request Basic-Auth mitgesendet wird.
 
 IDOIT_URL muss auf den JSON-RPC-Endpunkt zeigen, z.B.
 https://idoit.example.com/src/jsonrpc.php
@@ -83,7 +87,11 @@ class IdoitConnector(Connector):
         if not self.is_configured():
             raise ConnectorError("i-doit ist nicht konfiguriert (URL/API-Key fehlen)")
 
-        async with httpx.AsyncClient(verify=self.settings.idoit_verify_ssl) as client:
+        basic_auth = None
+        if self.settings.idoit_user and self.settings.idoit_password:
+            basic_auth = httpx.BasicAuth(self.settings.idoit_user, self.settings.idoit_password)
+
+        async with httpx.AsyncClient(verify=self.settings.idoit_verify_ssl, auth=basic_auth) as client:
             filter_: dict = {}
             if self.object_types:
                 filter_["type"] = self.object_types
