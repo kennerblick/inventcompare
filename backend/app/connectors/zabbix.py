@@ -110,7 +110,7 @@ class ZabbixConnector(Connector):
                 Device(
                     source=SourceName.zabbix,
                     source_id=host["hostid"],
-                    hostname=host.get("name") or host.get("host"),
+                    hostname=host.get("host") or host.get("name"),
                     ip=ip,
                     os=os_name or None,
                     status=status,
